@@ -1,0 +1,81 @@
+#Download the file
+wget https://raw.githubusercontent.com/fedegiallorosso/bigdata/main/bank_prospects.csv
+
+#Check the file has been downloaded
+ls
+
+#Create the Hadoop directory
+hadoop fs -mkdir /user/erroifede_ps
+
+#Create a directory where the raw file will be stored for processing
+hadoop fs -mkdir /user/erroifede_ps/bankraw
+
+#Moving the file from local environment to bankraw directory in HDFS
+hadoop fs -put bank_prospects.csv /user/erroifede_ps/bankraw
+
+#Check that the file has been copied
+hadoop fs -ls /user/erroifede_ps/bankraw
+
+#Login to pyspark shell
+pyspark
+
+#Loading the file to a dataframe
+bankProspectsDF = spark.read.csv("/user/erroifede_ps/bank_prospects.csv", header=True)
+
+#We check the content of the dataframe
+bankProspectsDF.show()
+
+#Filter out records with unknown values
+bankProspectsDF1=bankProspectsDF.filter(bankProspectsDF["country"]!="unknown")
+
+#Print the schema
+bankProspectsDF1.printSchema()
+
+#we need to transform columns age and salary to integer
+from pyspark.sql.types import IntegerType, FloatType
+
+bankProspectsDF2= bankProspectsDF1.withColumn("age", bankProspectsDF1["age"].cast(IntegerType())).withColumn("salary", bankProspectsDF1["salary"].cast(FloatType()))
+
+bankProspectsDF2.printSchema()
+
+#we will substitute null values with mean values
+from pyspark.sql.functions import mean
+
+mean_age_val=bankProspectsDF2.select(mean(bankProspectsDF2['age'])).collect()
+mean_age_val=mean_age_val[0][0]
+
+mean_salary_val=bankProspectsDF2.select(mean(bankProspectsDF2['salary'])).collect()
+mean_salary_val=mean_salary_val[0][0]
+
+#now we substitute the null values with mean value
+bankProspectsDF3= bankProspectsDF2.na.fill(mean_age_val, ["age"])
+
+bankProspectsDF3.show()
+
+bankProspectsDF4= bankProspectsDF3.na.fill(mean_salary_val, ["salary"])
+
+bankProspectsDF4.show()
+
+#we convert the dataframe to csv file
+bankProspectsDF4.write.format("csv").save("bank_prospects_transformed")
+
+#exit the pyspark shell
+:quit
+
+#Check the new directory in HDFS
+hadoop fs -ls bank_prospects_transformed
+
+#Log in to hive shell and create a table, thanks to which analitycs can be conducted
+hive
+
+create database if not exist futurex;
+use trasf_data;
+
+create table bankprospectcleaned (age INT, salary FLOAT, gender String, country String, purchased String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LOCATION '/user/erroifede_ps/bank_prospects_trasformed/' TBLPROPERTIES ("skip.header.line.count"="1");
+
+show tables;
+
+select * from bankprospectcleaned;
+
+#This table contains the transformed data and any downstream applications, that wants to use the table for analitycs, can point to this table 
+

@@ -1,0 +1,102 @@
+Joining yellow taxi table with the zones lookuo table (implicit join)
+t is alias for the table
+SELECT
+tpep_pickup_datetime,
+tpep_dropoff_datetime,
+total_amount,
+CONCAT (zpu."Borough", '/',zpu."Zone") AS "pickup_loc",
+CONCAT (zdo."Borough", '/',zdo."Zone") AS "dropoff_loc"
+FROM
+yellow_taxi_data t,
+zones zpu,
+zones zdo
+WHERE
+t."PULocationID" = zpu."LocationID" AND
+t."DOLocationID" = zdo."LocationID"
+LIMIT 10;
+
+1.Using explicit inner join
+SELECT
+tpep_pickup_datetime,
+tpep_dropoff_datetime,
+total_amount,
+CONCAT (zpu."Borough", '/',zpu."Zone") AS "pickup_loc",
+CONCAT (zdo."Borough", '/',zdo."Zone") AS "dropoff_loc"
+FROM
+yellow_taxi_data t JOIN zones zpu ON t."PULocationID" = zpu."LocationID"
+JOIN zones zdo ON t."DOLocationID" = zdo."LocationID"
+LIMIT 10;
+
+2.Checking for records with LocationID not in thr zones table
+SELECT
+tpep_pickup_datetime,
+tpep_dropoff_datetime,
+total_amount,
+"PULocationID",
+"DOLocationID"
+FROM
+yellow_taxi_data t
+WHERE
+"PULocationID" is NULL
+LIMIT 100;
+
+3.Checking for Location IDs in the zones table not in the yellow taxi table
+SELECT
+tpep_pickup_datetime,
+tpep_dropoff_datetime,
+total_amount,
+"PULocationID",
+"DOLocationID"
+FROM
+yellow_taxi_data t
+WHERE
+"PULocationID" NOT IN (SELECT "LocationID" FROM zones)
+LIMIT 100;
+
+4.Using Left, Right, and Outer Joins when some LocationIDs are not in either tables
+
+5. Using GROUP BY to calculate number of trips per day
+SELECT
+  CAST (tpep_dropoff_datetime AS DATE) as "day",
+  COUNT (1)
+FROM
+yellow_taxi_data t
+GROUP BY
+  CAST (tpep_dropoff_datetime AS DATE)
+
+6. Using ORDER BY to order the results of your query
+SELECT
+  CAST (tpep_dropoff_datetime AS DATE) as "day",
+  COUNT (1)
+FROM
+yellow_taxi_data t
+GROUP BY
+  CAST (tpep_dropoff_datetime AS DATE)
+ORDER BY "day" ASC;
+
+7. Other kinds of aggregations
+SELECT
+  CAST (tpep_dropoff_datetime AS DATE) as "day",
+  COUNT (1) AS "count",
+  MAX (total_amount),
+  MAX (passenger_count)
+FROM
+yellow_taxi_data t
+GROUP BY
+  CAST (tpep_dropoff_datetime AS DATE)
+ORDER BY "count" DESC;
+
+8. Grouping by multiple fields
+SELECT
+  CAST (tpep_dropoff_datetime AS DATE) as "day",
+  "DOLocationID",
+  COUNT (1) AS "count",
+  MAX (total_amount),
+  MAX (passenger_count)
+FROM
+yellow_taxi_data t
+GROUP BY
+  1,2
+ORDER BY
+"day" ASC,
+"DOLocationID" ASC;
